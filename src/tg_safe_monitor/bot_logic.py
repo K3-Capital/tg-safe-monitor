@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import asyncio
+
 from .messages import (
     format_address_link,
     format_bootstrap_message,
@@ -28,19 +30,21 @@ class CommandService:
         result = await self.eoa_service.add_eoa(address, added_by_user_id=user_id, added_by_username=username, label=label)
         return format_eoa_bootstrap_message(result.eoa_address, result.start_block, result.label)
 
-    def handle_remove(self, address: str) -> str:
-        if self.safe_service.remove_safe(address):
+    async def handle_remove(self, address: str) -> str:
+        if await asyncio.to_thread(self.safe_service.remove_safe, address):
             return f"Removed safe {address} from monitoring."
-        if self.contract_service.remove_contract(address):
+        if await asyncio.to_thread(self.contract_service.remove_contract, address):
             return f"Removed contract {address} from monitoring."
-        if self.eoa_service.remove_eoa(address):
+        if await asyncio.to_thread(self.eoa_service.remove_eoa, address):
             return f"Removed EOA {address} from monitoring."
         return f"Address {address} was not being monitored."
 
-    def handle_list(self) -> str:
-        safes = self.safe_service.list_safes()
-        contracts = self.contract_service.list_contracts()
-        eoas = self.eoa_service.list_eoas()
+    async def handle_list(self) -> str:
+        safes, contracts, eoas = await asyncio.gather(
+            asyncio.to_thread(self.safe_service.list_safes),
+            asyncio.to_thread(self.contract_service.list_contracts),
+            asyncio.to_thread(self.eoa_service.list_eoas),
+        )
         if not safes and not contracts and not eoas:
             return "No addresses are currently being monitored."
         lines = ["Currently monitored addresses:"]
@@ -48,3 +52,12 @@ class CommandService:
         lines.extend(f"- Contract: {format_address_link(item.contract_address, item.label)}" for item in contracts)
         lines.extend(f"- EOA: {format_address_link(item.eoa_address, item.label)}" for item in eoas)
         return "\n".join(lines)
+
+    async def handle_status(self) -> str:
+        safes, contracts, eoas = await asyncio.gather(
+            asyncio.to_thread(self.safe_service.list_safes),
+            asyncio.to_thread(self.contract_service.list_contracts),
+            asyncio.to_thread(self.eoa_service.list_eoas),
+        )
+        total = len(safes) + len(contracts) + len(eoas)
+        return f"tg-safe-monitor is running. Monitoring {total} address(es)."

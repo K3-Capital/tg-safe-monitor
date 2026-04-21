@@ -1,3 +1,5 @@
+import threading
+
 import pytest
 
 from tg_safe_monitor.bot_logic import CommandService
@@ -177,10 +179,11 @@ async def test_add_command_routes_eoa_based_on_classifier() -> None:
     ]
 
 
-def test_remove_command_removes_existing_safe_without_classifier_help() -> None:
+@pytest.mark.asyncio
+async def test_remove_command_removes_existing_safe_without_classifier_help() -> None:
     commands, safe_service, contract_service, eoa_service = make_commands({})
 
-    message = commands.handle_remove("0xB3696A817D01C8623E66D156B6798291fa10a46d")
+    message = await commands.handle_remove("0xB3696A817D01C8623E66D156B6798291fa10a46d")
 
     assert "Removed safe" in message
     assert safe_service.remove_calls == ["0xB3696A817D01C8623E66D156B6798291fa10a46d"]
@@ -188,10 +191,11 @@ def test_remove_command_removes_existing_safe_without_classifier_help() -> None:
     assert eoa_service.remove_calls == []
 
 
-def test_list_command_aggregates_all_monitored_address_types() -> None:
+@pytest.mark.asyncio
+async def test_list_command_aggregates_all_monitored_address_types() -> None:
     commands, _, _, _ = make_commands({})
 
-    message = commands.handle_list()
+    message = await commands.handle_list()
 
     assert "Safe" in message
     assert "Contract" in message
@@ -199,3 +203,38 @@ def test_list_command_aggregates_all_monitored_address_types() -> None:
     assert "*Treasury Safe* — `0xB3696A817D01C8623E66D156B6798291fa10a46d` [scan](https://etherscan.io/address/0xB3696A817D01C8623E66D156B6798291fa10a46d) | [debank](https://debank.com/profile/0xB3696A817D01C8623E66D156B6798291fa10a46d) | [arkham](https://intel.arkm.com/explorer/address/0xB3696A817D01C8623E66D156B6798291fa10a46d)" in message
     assert "*High Volume Contract* — `0xbd216513d74c8cf14cf4747e6aaa6420ff64ee9e` [scan](https://etherscan.io/address/0xbd216513d74c8cf14cf4747e6aaa6420ff64ee9e) | [debank](https://debank.com/profile/0xbd216513d74c8cf14cf4747e6aaa6420ff64ee9e) | [arkham](https://intel.arkm.com/explorer/address/0xbd216513d74c8cf14cf4747e6aaa6420ff64ee9e)" in message
     assert "*Trader Wallet* — `0x1111111111111111111111111111111111111111` [scan](https://etherscan.io/address/0x1111111111111111111111111111111111111111) | [debank](https://debank.com/profile/0x1111111111111111111111111111111111111111) | [arkham](https://intel.arkm.com/explorer/address/0x1111111111111111111111111111111111111111)" in message
+
+
+class ThreadAwareListService:
+    def __init__(self, event_loop_thread_id: int) -> None:
+        self.event_loop_thread_id = event_loop_thread_id
+        self.thread_ids: list[int] = []
+
+    def list_safes(self):
+        self.thread_ids.append(threading.get_ident())
+        return []
+
+    def list_contracts(self):
+        self.thread_ids.append(threading.get_ident())
+        return []
+
+    def list_eoas(self):
+        self.thread_ids.append(threading.get_ident())
+        return []
+
+
+@pytest.mark.asyncio
+async def test_list_command_offloads_listing_work_from_event_loop() -> None:
+    service = ThreadAwareListService(threading.get_ident())
+    commands = CommandService(
+        safe_service=service,
+        contract_service=service,
+        eoa_service=service,
+        address_classifier=FakeClassifier({}),
+    )
+
+    message = await commands.handle_list()
+
+    assert message == "No addresses are currently being monitored."
+    assert len(service.thread_ids) == 3
+    assert all(thread_id != service.event_loop_thread_id for thread_id in service.thread_ids)

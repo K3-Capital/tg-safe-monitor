@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import asyncio
+
 from eth_utils import is_address, to_checksum_address
 
 from .models import AddEoaResult, EoaMonitorNotification, EoaTransaction
@@ -27,18 +29,19 @@ class EoaMonitorService:
         label: str | None = None,
     ) -> AddEoaResult:
         normalized = self.normalize_eoa_address(eoa_address)
-        if self.repository.is_eoa_monitored(normalized):
+        if await asyncio.to_thread(self.repository.is_eoa_monitored, normalized):
             raise EoaAlreadyMonitoredError(f"EOA {normalized} is already being monitored")
         current_block = await self.rpc_client.get_block_number()
-        self.repository.add_eoa(
+        await asyncio.to_thread(
+            self.repository.add_eoa,
             normalized,
             added_by_user_id=added_by_user_id,
             added_by_username=added_by_username,
             start_block=current_block,
             label=label,
         )
-        if self.repository.get_monitor_state(LAST_SCANNED_BLOCK_KEY) is None:
-            self.repository.set_monitor_state(LAST_SCANNED_BLOCK_KEY, str(current_block))
+        if await asyncio.to_thread(self.repository.get_monitor_state, LAST_SCANNED_BLOCK_KEY) is None:
+            await asyncio.to_thread(self.repository.set_monitor_state, LAST_SCANNED_BLOCK_KEY, str(current_block))
         return AddEoaResult(eoa_address=normalized, start_block=current_block, label=label)
 
     def remove_eoa(self, eoa_address: str) -> bool:
@@ -48,14 +51,14 @@ class EoaMonitorService:
         return self.repository.list_eoas()
 
     async def poll_once(self) -> list[EoaMonitorNotification]:
-        monitored_eoas = self.repository.list_eoas()
+        monitored_eoas = await asyncio.to_thread(self.repository.list_eoas)
         if not monitored_eoas:
             return []
         current_block = await self.rpc_client.get_block_number()
         head_block = max(current_block - self.confirmation_blocks, 0)
-        state = self.repository.get_monitor_state(LAST_SCANNED_BLOCK_KEY)
+        state = await asyncio.to_thread(self.repository.get_monitor_state, LAST_SCANNED_BLOCK_KEY)
         if state is None:
-            self.repository.set_monitor_state(LAST_SCANNED_BLOCK_KEY, str(head_block))
+            await asyncio.to_thread(self.repository.set_monitor_state, LAST_SCANNED_BLOCK_KEY, str(head_block))
             return []
         last_scanned_block = int(state)
         if head_block <= last_scanned_block:
@@ -72,11 +75,11 @@ class EoaMonitorService:
                 monitored = eoa_map.get(normalized_from.lower())
                 if monitored is None:
                     continue
-                if self.repository.has_seen_eoa_transaction(monitored.eoa_address, normalized_tx.tx_hash):
+                if await asyncio.to_thread(self.repository.has_seen_eoa_transaction, monitored.eoa_address, normalized_tx.tx_hash):
                     continue
-                self.repository.record_seen_eoa_transaction(monitored.eoa_address, normalized_tx.tx_hash, normalized_tx.block_number)
+                await asyncio.to_thread(self.repository.record_seen_eoa_transaction, monitored.eoa_address, normalized_tx.tx_hash, normalized_tx.block_number)
                 notifications.append(EoaMonitorNotification(eoa_address=monitored.eoa_address, transaction=normalized_tx, label=monitored.label))
-            self.repository.set_monitor_state(LAST_SCANNED_BLOCK_KEY, str(block_number))
+            await asyncio.to_thread(self.repository.set_monitor_state, LAST_SCANNED_BLOCK_KEY, str(block_number))
         return notifications
 
     @staticmethod

@@ -1,3 +1,4 @@
+import threading
 from dataclasses import dataclass
 
 import pytest
@@ -112,3 +113,70 @@ async def test_poll_once_alerts_only_for_successful_direct_calls_to_monitored_co
     assert notifications[0].label == "High Volume Contract"
     assert notifications[0].transaction.tx_hash == "0xaaa"
     assert notifications[0].transaction.selector == "0xa9059cbb"
+
+
+class ThreadCheckingContractRepository(InMemoryMonitorRepository):
+    def __init__(self, event_loop_thread_id: int) -> None:
+        super().__init__()
+        self.event_loop_thread_id = event_loop_thread_id
+        self.observed_threads: list[int] = []
+
+    def list_contracts(self):
+        self.observed_threads.append(threading.get_ident())
+        assert threading.get_ident() != self.event_loop_thread_id
+        return super().list_contracts()
+
+    def get_monitor_state(self, key: str) -> str | None:
+        self.observed_threads.append(threading.get_ident())
+        assert threading.get_ident() != self.event_loop_thread_id
+        return super().get_monitor_state(key)
+
+    def set_monitor_state(self, key: str, value: str) -> None:
+        self.observed_threads.append(threading.get_ident())
+        assert threading.get_ident() != self.event_loop_thread_id
+        return super().set_monitor_state(key, value)
+
+    def has_seen_contract_transaction(self, contract_address: str, tx_hash: str) -> bool:
+        self.observed_threads.append(threading.get_ident())
+        assert threading.get_ident() != self.event_loop_thread_id
+        return super().has_seen_contract_transaction(contract_address, tx_hash)
+
+    def record_seen_contract_transaction(self, contract_address: str, tx_hash: str, block_number: int) -> None:
+        self.observed_threads.append(threading.get_ident())
+        assert threading.get_ident() != self.event_loop_thread_id
+        return super().record_seen_contract_transaction(contract_address, tx_hash, block_number)
+
+
+@pytest.mark.asyncio
+async def test_poll_once_offloads_contract_repository_access_from_event_loop() -> None:
+    repository = ThreadCheckingContractRepository(threading.get_ident())
+    rpc = FakeEthereumRpcClient()
+    service = ContractMonitorService(repository, rpc_client=rpc, confirmation_blocks=0)
+
+    repository.add_contract(
+        "0xbD216513d74C8cf14cf4747E6AaA6420FF64ee9e",
+        added_by_user_id=1,
+        added_by_username="val",
+        start_block=100,
+        label="High Volume Contract",
+    )
+    InMemoryMonitorRepository.set_monitor_state(repository, "ethereum_mainnet_contract_last_scanned_block", "100")
+    repository.observed_threads.clear()
+    rpc.current_block = 101
+    rpc.blocks[101] = [
+        FakeRpcTransaction(
+            tx_hash="0xaaa",
+            block_number=101,
+            from_address="0x1111111111111111111111111111111111111111",
+            to_address="0xbD216513d74C8cf14cf4747E6AaA6420FF64ee9e",
+            value="1",
+            input_data="0xa9059cbb00000000",
+        )
+    ]
+    rpc.receipts["0xaaa"] = True
+
+    notifications = await service.poll_once()
+
+    assert len(notifications) == 1
+    assert notifications[0].transaction.tx_hash == "0xaaa"
+    assert repository.observed_threads

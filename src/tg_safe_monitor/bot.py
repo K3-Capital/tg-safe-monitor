@@ -54,18 +54,17 @@ def build_application(settings: Settings, command_service: CommandService) -> Ap
         if not context.args:
             await _reply(update, "Usage: /remove <address>")
             return
-        await _reply(update, command_service.handle_remove(context.args[0]))
+        await _reply(update, await command_service.handle_remove(context.args[0]))
 
     async def list_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         if not await _ensure_allowed(update, settings):
             return
-        await _reply(update, command_service.handle_list())
+        await _reply(update, await command_service.handle_list())
 
     async def status_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         if not await _ensure_allowed(update, settings):
             return
-        total = len(command_service.safe_service.list_safes()) + len(command_service.contract_service.list_contracts()) + len(command_service.eoa_service.list_eoas())
-        await _reply(update, f"tg-safe-monitor is running. Monitoring {total} address(es).")
+        await _reply(update, await command_service.handle_status())
 
     application.add_handler(CommandHandler("start", help_handler))
     application.add_handler(CommandHandler("help", help_handler))
