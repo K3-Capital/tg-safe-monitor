@@ -20,12 +20,19 @@ class FakeEthereumRpcClient:
     def __init__(self) -> None:
         self.current_block = 100
         self.blocks: dict[int, list[FakeRpcTransaction]] = {}
+        self.receipts: dict[str, bool] = {}
 
     async def get_block_number(self) -> int:
         return self.current_block
 
     async def get_block_with_transactions(self, block_number: int):
         return self.blocks.get(block_number, [])
+
+    async def get_transaction_receipt(self, tx_hash: str):
+        success = self.receipts.get(tx_hash)
+        if success is None:
+            return None
+        return {"status": "0x1" if success else "0x0"}
 
 
 @pytest.mark.asyncio
@@ -47,7 +54,7 @@ async def test_add_contract_starts_from_current_block_without_backfill() -> None
 
 
 @pytest.mark.asyncio
-async def test_poll_once_alerts_only_for_direct_calls_to_monitored_contract() -> None:
+async def test_poll_once_alerts_only_for_successful_direct_calls_to_monitored_contract() -> None:
     repository = InMemoryMonitorRepository()
     rpc = FakeEthereumRpcClient()
     service = ContractMonitorService(repository, rpc_client=rpc, confirmation_blocks=0)
@@ -70,6 +77,14 @@ async def test_poll_once_alerts_only_for_direct_calls_to_monitored_contract() ->
             input_data="0xa9059cbb00000000",
         ),
         FakeRpcTransaction(
+            tx_hash="0xddd",
+            block_number=101,
+            from_address="0x1111111111111111111111111111111111111111",
+            to_address="0xbd216513d74c8cf14cf4747e6aaa6420ff64ee9e",
+            value="1",
+            input_data="0xa9059cbb00000000",
+        ),
+        FakeRpcTransaction(
             tx_hash="0xbbb",
             block_number=101,
             from_address="0x1111111111111111111111111111111111111111",
@@ -78,6 +93,8 @@ async def test_poll_once_alerts_only_for_direct_calls_to_monitored_contract() ->
             input_data="0x",
         ),
     ]
+    rpc.receipts["0xaaa"] = True
+    rpc.receipts["0xddd"] = False
     rpc.blocks[102] = [
         FakeRpcTransaction(
             tx_hash="0xccc",

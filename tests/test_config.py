@@ -5,6 +5,7 @@ from tg_safe_monitor.config import Settings
 
 def test_settings_reads_database_url_from_env_alias() -> None:
     settings = Settings(
+        _env_file=None,
         TELEGRAM_BOT_TOKEN="***",
         TELEGRAM_CHAT_ID=-1001234567890,
         DATABASE_URL="postgresql://user:***@db.example.com:5432/tg_safe_monitor",
@@ -20,15 +21,20 @@ def test_settings_reads_database_url_from_env_alias() -> None:
 def test_settings_requires_database_url() -> None:
     with pytest.raises(Exception):
         Settings(
+            _env_file=None,
             TELEGRAM_BOT_TOKEN="***",
             TELEGRAM_CHAT_ID=-1001234567890,
+            DATABASE_URL=None,
+            ETHEREUM_RPC_URL="https://mainnet.gateway.tenderly.co/example",
         )
 
 
 def test_settings_requires_ethereum_rpc_url() -> None:
     with pytest.raises(Exception):
         Settings(
+            _env_file=None,
             TELEGRAM_BOT_TOKEN="***",
             TELEGRAM_CHAT_ID=-1001234567890,
             DATABASE_URL="postgresql://user:***@db.example.com:5432/tg_safe_monitor",
+            ETHEREUM_RPC_URL=None,
         )

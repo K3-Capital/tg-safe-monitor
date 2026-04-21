@@ -4,29 +4,34 @@ Telegram bot that monitors:
 
 - **Gnosis Safe multisig transactions**
 - **direct Ethereum mainnet contract calls**
+- **EOA-signed Ethereum mainnet transactions**
 
 and posts to a Telegram group when a **new** matching transaction appears.
 
 ## What it does
 
 - listens for Telegram commands in one configured group chat
-- lets users add/remove monitored Safe addresses and monitored contract addresses
+- lets users add/remove/list monitored addresses with a simple generic command surface
+- automatically classifies an added address as a:
+  - Safe
+  - contract
+  - EOA
 - supports optional human-readable labels for monitored addresses
 - fetches Safe multisig transactions from the Safe Transaction Service API
-- scans Ethereum mainnet blocks over JSON-RPC for direct calls to monitored contracts
+- scans Ethereum mainnet blocks over JSON-RPC for:
+  - direct calls to monitored contracts
+  - transactions signed by monitored EOAs
 - records existing Safe transactions when a Safe is first added
-- starts contract monitoring from the current block when a contract is first added
+- starts contract/EOA monitoring from the current block when first added
 - **does not** alert for historical transactions
+- skips **reverted contract transactions** to reduce noise
 - alerts only when a previously unseen matching transaction appears later
 
 ## Commands
 
-- `/addsafe <safe_address> [label]`
-- `/remsafe <safe_address>`
-- `/listsafes`
-- `/addcontract <contract_address> [label]`
-- `/remcontract <contract_address>`
-- `/listcontracts`
+- `/add <address> [label]`
+- `/remove <address>`
+- `/list`
 - `/status`
 - `/help`
 
@@ -38,12 +43,18 @@ Copy `.env.example` to `.env` and fill in the values:
 - `TELEGRAM_CHAT_ID` — target group chat id where the bot runs and posts alerts
 - `TG_ADMIN_USER_IDS` — optional comma-separated allowlist; leave empty to allow any group member
 - `SAFE_API_TOKEN` — Safe API authorization token sent as the raw `Authorization` header value
-- `SAFE_API_BASE_URL` — Safe transaction service base URL
+- `SAFE_API_BASE_URL` — Safe transaction service base URL used for Safe monitoring and Safe detection
 - `POLL_INTERVAL_SECONDS` — polling interval for new transactions
-- `DATABASE_URL` — PostgreSQL connection string used for bot state
-- `ETHEREUM_RPC_URL` — Ethereum mainnet JSON-RPC endpoint for contract-call monitoring
-- `ETHEREUM_CONFIRMATION_BLOCKS` — optional confirmation lag before contract-call alerts
+- `ETHEREUM_RPC_URL` — Ethereum mainnet JSON-RPC endpoint for contract/EOA monitoring
+- `ETHEREUM_CONFIRMATION_BLOCKS` — optional confirmation lag before contract/EOA alerts
 - `LOG_LEVEL` — runtime log level
+
+Optional database settings:
+
+- `DATABASE_URL` — PostgreSQL connection string used for bot state
+- `POSTGRES_DB` — local docker-compose Postgres database name
+- `POSTGRES_USER` — local docker-compose Postgres username
+- `POSTGRES_PASSWORD` — local docker-compose Postgres password
 
 ## Local development with uv
 
@@ -77,29 +88,41 @@ uv run python -m tg_safe_monitor
 
 ## Docker deployment
 
+### Local testing with bundled Postgres
+
 ```bash
 docker compose up --build -d
 ```
 
-The container expects an external PostgreSQL database via `DATABASE_URL` and an Ethereum RPC via `ETHEREUM_RPC_URL`.
+This starts:
 
-## Add a Safe workflow
+- `postgres` — a local Postgres service for testing
+- `tg-safe-monitor` — the bot, configured to use that local DB by default
 
-When a user adds a Safe, the bot:
+### Using an external Postgres database
 
-1. fetches current Safe transactions from the Safe API
-2. stores them as already known
-3. confirms how many historical transactions were found
-4. starts alerting only for newly discovered transactions from that point forward
+Set `DATABASE_URL` in `.env` and run the same command:
 
-## Add a Contract workflow
+```bash
+docker compose up --build -d
+```
 
-When a user adds a contract, the bot:
+If `DATABASE_URL` is present, the bot will use it instead of the bundled local default.
 
-1. stores the checksum contract address and optional label
-2. records the current mainnet block as the starting point
-3. does **not** backfill historical calls
-4. scans new blocks for direct transactions where `tx.to == contract_address`
-5. alerts only once per newly seen transaction hash
+## Add workflow
+
+When a user adds an address, the bot:
+
+1. normalizes the checksum address
+2. classifies it as Safe / contract / EOA
+3. stores the optional human label
+4. bootstraps the monitor correctly for that address type
+5. starts alerting only for newly discovered matching transactions from that point forward
+
+## Alert links
+
+- **Safe transactions:** include a Safe App link
+- **Contract transactions:** include an Etherscan tx link
+- **EOA transactions:** include an Etherscan tx link
 
 Optional labels are shown in list output and alerts as `Label (0x...)`.

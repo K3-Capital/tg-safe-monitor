@@ -21,6 +21,17 @@ class SafeApiClient:
         if self._owns_client:
             await self.http_client.aclose()
 
+    async def is_safe(self, safe_address: str) -> bool:
+        headers = {"accept": "application/json"}
+        if self.token:
+            headers["Authorization"] = self.token
+        details_base = self.base_url.replace("/api/v2", "/api/v1") if "/api/v2" in self.base_url else self.base_url
+        response = await self.http_client.get(f"{details_base}/safes/{safe_address}/", headers=headers)
+        if response.status_code == 404:
+            return False
+        response.raise_for_status()
+        return True
+
     async def list_transactions(self, safe_address: str) -> list[SafeTransaction]:
         url: str | None = f"{self.base_url}/safes/{safe_address}/multisig-transactions/"
         results: list[SafeTransaction] = []

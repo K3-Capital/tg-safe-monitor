@@ -29,6 +29,14 @@ class EthereumRpcClient:
         transactions = result.get("transactions", [])
         return [self._parse_transaction(tx) for tx in transactions if isinstance(tx, Mapping)]
 
+    async def get_transaction_receipt(self, tx_hash: str) -> Mapping[str, object] | None:
+        result = await self._rpc("eth_getTransactionReceipt", [tx_hash])
+        return result if isinstance(result, Mapping) else None
+
+    async def get_code(self, address: str, block_tag: str = "latest") -> str:
+        result = await self._rpc("eth_getCode", [address, block_tag])
+        return str(result)
+
     async def _rpc(self, method: str, params: list[object]) -> object:
         self._request_id += 1
         response = await self.http_client.post(

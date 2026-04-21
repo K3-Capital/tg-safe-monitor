@@ -1,13 +1,21 @@
+from .address_classifier import AddressClassifier
 from .bot_logic import CommandService
 from .contract_service import ContractAlreadyMonitoredError, ContractMonitorService
+from .eoa_service import EoaAlreadyMonitoredError, EoaMonitorService
 from .ethereum_rpc import EthereumRpcClient
 from .models import (
     AddContractResult,
+    AddEoaResult,
     AddSafeResult,
+    AddressType,
+    ClassifiedAddress,
     ContractCallTransaction,
     ContractMonitorNotification,
+    EoaMonitorNotification,
+    EoaTransaction,
     MonitorNotification,
     MonitoredContract,
+    MonitoredEoa,
     MonitoredSafe,
     SafeTransaction,
 )
@@ -16,16 +24,25 @@ from .storage import InMemoryMonitorRepository, MonitorRepository, PostgresMonit
 
 __all__ = [
     "AddContractResult",
+    "AddEoaResult",
     "AddSafeResult",
+    "AddressClassifier",
+    "AddressType",
+    "ClassifiedAddress",
     "CommandService",
     "ContractAlreadyMonitoredError",
     "ContractCallTransaction",
     "ContractMonitorNotification",
     "ContractMonitorService",
+    "EoaAlreadyMonitoredError",
+    "EoaMonitorNotification",
+    "EoaMonitorService",
+    "EoaTransaction",
     "EthereumRpcClient",
     "InMemoryMonitorRepository",
     "MonitorNotification",
     "MonitoredContract",
+    "MonitoredEoa",
     "MonitoredSafe",
     "MonitorRepository",
     "PostgresMonitorRepository",

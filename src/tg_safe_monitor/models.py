@@ -1,5 +1,18 @@
 from __future__ import annotations
 from dataclasses import dataclass
+from enum import StrEnum
+
+
+class AddressType(StrEnum):
+    SAFE = "safe"
+    CONTRACT = "contract"
+    EOA = "eoa"
+
+
+@dataclass(slots=True)
+class ClassifiedAddress:
+    address: str
+    address_type: AddressType
 
 
 @dataclass(slots=True)
@@ -75,4 +88,39 @@ class AddContractResult:
 class ContractMonitorNotification:
     contract_address: str
     transaction: ContractCallTransaction
+    label: str | None = None
+
+
+@dataclass(slots=True)
+class EoaTransaction:
+    tx_hash: str
+    block_number: int
+    from_address: str
+    to_address: str | None
+    value: str
+    input_data: str
+    success: bool | None = None
+
+
+@dataclass(slots=True)
+class MonitoredEoa:
+    eoa_address: str
+    added_by_user_id: int | None
+    added_by_username: str | None
+    start_block: int
+    added_at: str
+    label: str | None = None
+
+
+@dataclass(slots=True)
+class AddEoaResult:
+    eoa_address: str
+    start_block: int
+    label: str | None = None
+
+
+@dataclass(slots=True)
+class EoaMonitorNotification:
+    eoa_address: str
+    transaction: EoaTransaction
     label: str | None = None

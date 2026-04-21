@@ -8,19 +8,14 @@ from telegram.ext import Application, ApplicationBuilder, CommandHandler, Contex
 
 from .bot_logic import CommandService
 from .config import Settings
-from .contract_service import ContractAlreadyMonitoredError
-from .service import SafeAlreadyMonitoredError
 
 logger = logging.getLogger(__name__)
 
 HELP_TEXT: Final[str] = (
     "Commands:\n"
-    "/addsafe <safe_address> [label] - start monitoring a Safe\n"
-    "/remsafe <safe_address> - stop monitoring a Safe\n"
-    "/listsafes - list monitored Safes\n"
-    "/addcontract <contract_address> [label] - start monitoring a contract\n"
-    "/remcontract <contract_address> - stop monitoring a contract\n"
-    "/listcontracts - list monitored contracts\n"
+    "/add <address> [label] - start monitoring an address\n"
+    "/remove <address> - stop monitoring an address\n"
+    "/list - list monitored addresses\n"
     "/status - show monitor status\n"
     "/help - show this help text"
 )
@@ -34,90 +29,48 @@ def build_application(settings: Settings, command_service: CommandService) -> Ap
             return
         await _reply(update, HELP_TEXT)
 
-    async def add_safe_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    async def add_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         if not await _ensure_allowed(update, settings):
             return
         if not context.args:
-            await _reply(update, "Usage: /addsafe <safe_address> [label]")
+            await _reply(update, "Usage: /add <address> [label]")
             return
         label = " ".join(context.args[1:]).strip() or None
         try:
-            message = await command_service.handle_add_safe(
+            message = await command_service.handle_add(
                 context.args[0],
                 user_id=update.effective_user.id if update.effective_user else 0,
                 username=update.effective_user.username if update.effective_user else None,
                 label=label,
             )
-        except SafeAlreadyMonitoredError as exc:
-            message = str(exc)
         except ValueError as exc:
             message = str(exc)
         await _reply(update, message)
 
-    async def remove_safe_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    async def remove_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         if not await _ensure_allowed(update, settings):
             return
         if not context.args:
-            await _reply(update, "Usage: /remsafe <safe_address>")
+            await _reply(update, "Usage: /remove <address>")
             return
-        await _reply(update, command_service.handle_remove_safe(context.args[0]))
+        await _reply(update, command_service.handle_remove(context.args[0]))
 
-    async def list_safes_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    async def list_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         if not await _ensure_allowed(update, settings):
             return
-        await _reply(update, command_service.handle_list_safes())
-
-    async def add_contract_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        if not await _ensure_allowed(update, settings):
-            return
-        if not context.args:
-            await _reply(update, "Usage: /addcontract <contract_address> [label]")
-            return
-        label = " ".join(context.args[1:]).strip() or None
-        try:
-            message = await command_service.handle_add_contract(
-                context.args[0],
-                user_id=update.effective_user.id if update.effective_user else 0,
-                username=update.effective_user.username if update.effective_user else None,
-                label=label,
-            )
-        except ContractAlreadyMonitoredError as exc:
-            message = str(exc)
-        except ValueError as exc:
-            message = str(exc)
-        await _reply(update, message)
-
-    async def remove_contract_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        if not await _ensure_allowed(update, settings):
-            return
-        if not context.args:
-            await _reply(update, "Usage: /remcontract <contract_address>")
-            return
-        await _reply(update, command_service.handle_remove_contract(context.args[0]))
-
-    async def list_contracts_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        if not await _ensure_allowed(update, settings):
-            return
-        await _reply(update, command_service.handle_list_contracts())
+        await _reply(update, command_service.handle_list())
 
     async def status_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         if not await _ensure_allowed(update, settings):
             return
-        safe_count = len(command_service.safe_service.list_safes())
-        contract_count = len(command_service.contract_service.list_contracts())
-        await _reply(
-            update,
-            f"tg-safe-monitor is running. Monitoring {safe_count} safe(s) and {contract_count} contract(s).",
-        )
+        total = len(command_service.safe_service.list_safes()) + len(command_service.contract_service.list_contracts()) + len(command_service.eoa_service.list_eoas())
+        await _reply(update, f"tg-safe-monitor is running. Monitoring {total} address(es).")
 
     application.add_handler(CommandHandler("start", help_handler))
     application.add_handler(CommandHandler("help", help_handler))
-    application.add_handler(CommandHandler("addsafe", add_safe_handler))
-    application.add_handler(CommandHandler("remsafe", remove_safe_handler))
-    application.add_handler(CommandHandler("listsafes", list_safes_handler))
-    application.add_handler(CommandHandler("addcontract", add_contract_handler))
-    application.add_handler(CommandHandler("remcontract", remove_contract_handler))
-    application.add_handler(CommandHandler("listcontracts", list_contracts_handler))
+    application.add_handler(CommandHandler("add", add_handler))
+    application.add_handler(CommandHandler("remove", remove_handler))
+    application.add_handler(CommandHandler("list", list_handler))
     application.add_handler(CommandHandler("status", status_handler))
     return application
 

@@ -7,7 +7,17 @@ class MonitoredAddress:
     def __init__(self, address: str, label: str | None = None) -> None:
         self.safe_address = address
         self.contract_address = address
+        self.eoa_address = address
         self.label = label
+
+
+class FakeClassifier:
+    def __init__(self, classifications: dict[str, str]) -> None:
+        self.classifications = {key.lower(): value for key, value in classifications.items()}
+
+    async def classify(self, address: str):
+        address_type = self.classifications[address.lower()]
+        return type("Classified", (), {"address": address, "address_type": address_type})()
 
 
 class FakeSafeMonitorService:
@@ -62,12 +72,52 @@ class FakeContractMonitorService:
         return list(self.contracts)
 
 
-@pytest.mark.asyncio
-async def test_add_safe_command_confirms_bootstrap_behavior() -> None:
-    safe_service = FakeSafeMonitorService()
-    commands = CommandService(safe_service=safe_service, contract_service=FakeContractMonitorService())
+class FakeEoaMonitorService:
+    def __init__(self) -> None:
+        self.add_calls = []
+        self.remove_calls = []
+        self.eoas = [MonitoredAddress("0x1111111111111111111111111111111111111111", "Trader Wallet")]
 
-    message = await commands.handle_add_safe(
+    async def add_eoa(self, eoa_address: str, *, added_by_user_id: int, added_by_username: str | None, label: str | None = None):
+        self.add_calls.append((eoa_address, added_by_user_id, added_by_username, label))
+        return type(
+            "Result",
+            (),
+            {
+                "eoa_address": "0x1111111111111111111111111111111111111111",
+                "start_block": 33333333,
+                "label": label,
+            },
+        )()
+
+    def remove_eoa(self, eoa_address: str) -> bool:
+        self.remove_calls.append(eoa_address)
+        return eoa_address.lower() == self.eoas[0].eoa_address.lower()
+
+    def list_eoas(self):
+        return list(self.eoas)
+
+
+def make_commands(classifications: dict[str, str]) -> tuple[CommandService, FakeSafeMonitorService, FakeContractMonitorService, FakeEoaMonitorService]:
+    safe_service = FakeSafeMonitorService()
+    contract_service = FakeContractMonitorService()
+    eoa_service = FakeEoaMonitorService()
+    commands = CommandService(
+        safe_service=safe_service,
+        contract_service=contract_service,
+        eoa_service=eoa_service,
+        address_classifier=FakeClassifier(classifications),
+    )
+    return commands, safe_service, contract_service, eoa_service
+
+
+@pytest.mark.asyncio
+async def test_add_command_routes_safe_based_on_classifier() -> None:
+    commands, safe_service, contract_service, eoa_service = make_commands(
+        {"0xb3696a817d01c8623e66d156b6798291fa10a46d": "safe"}
+    )
+
+    message = await commands.handle_add(
         "0xb3696a817D01C8623E66D156B6798291fa10a46d",
         user_id=55,
         username="val",
@@ -76,39 +126,20 @@ async def test_add_safe_command_confirms_bootstrap_behavior() -> None:
 
     assert "Added safe" in message
     assert "Treasury Safe" in message
-    assert "Found 3 existing transaction" in message
-    assert "will not trigger alerts" in message
     assert safe_service.add_calls == [
         ("0xb3696a817D01C8623E66D156B6798291fa10a46d", 55, "val", "Treasury Safe")
     ]
-
-
-def test_list_safes_command_lists_monitored_safes() -> None:
-    service = FakeSafeMonitorService()
-    commands = CommandService(safe_service=service, contract_service=FakeContractMonitorService())
-
-    message = commands.handle_list_safes()
-
-    assert "Currently monitored safes" in message
-    assert "Treasury Safe" in message
-    assert service.safes[0].safe_address in message
-
-
-def test_remove_safe_command_confirms_success() -> None:
-    service = FakeSafeMonitorService()
-    commands = CommandService(safe_service=service, contract_service=FakeContractMonitorService())
-
-    message = commands.handle_remove_safe("0xB3696A817D01C8623E66D156B6798291fa10a46d")
-
-    assert "Removed safe" in message
+    assert contract_service.add_calls == []
+    assert eoa_service.add_calls == []
 
 
 @pytest.mark.asyncio
-async def test_add_contract_command_accepts_optional_label() -> None:
-    contract_service = FakeContractMonitorService()
-    commands = CommandService(safe_service=FakeSafeMonitorService(), contract_service=contract_service)
+async def test_add_command_routes_contract_based_on_classifier() -> None:
+    commands, safe_service, contract_service, eoa_service = make_commands(
+        {"0xbd216513d74c8cf14cf4747e6aaa6420ff64ee9e": "contract"}
+    )
 
-    message = await commands.handle_add_contract(
+    message = await commands.handle_add(
         "0xbd216513d74c8cf14cf4747e6aaa6420ff64ee9e",
         user_id=55,
         username="val",
@@ -117,18 +148,54 @@ async def test_add_contract_command_accepts_optional_label() -> None:
 
     assert "Added contract" in message
     assert "High Volume Contract" in message
-    assert "current block" in message.lower()
+    assert safe_service.add_calls == []
     assert contract_service.add_calls == [
         ("0xbd216513d74c8cf14cf4747e6aaa6420ff64ee9e", 55, "val", "High Volume Contract")
     ]
+    assert eoa_service.add_calls == []
 
 
-def test_list_contracts_command_lists_monitored_contracts() -> None:
-    contract_service = FakeContractMonitorService()
-    commands = CommandService(safe_service=FakeSafeMonitorService(), contract_service=contract_service)
+@pytest.mark.asyncio
+async def test_add_command_routes_eoa_based_on_classifier() -> None:
+    commands, safe_service, contract_service, eoa_service = make_commands(
+        {"0x1111111111111111111111111111111111111111": "eoa"}
+    )
 
-    message = commands.handle_list_contracts()
+    message = await commands.handle_add(
+        "0x1111111111111111111111111111111111111111",
+        user_id=55,
+        username="val",
+        label="Trader Wallet",
+    )
 
-    assert "Currently monitored contracts" in message
+    assert "Added EOA" in message
+    assert "Trader Wallet" in message
+    assert safe_service.add_calls == []
+    assert contract_service.add_calls == []
+    assert eoa_service.add_calls == [
+        ("0x1111111111111111111111111111111111111111", 55, "val", "Trader Wallet")
+    ]
+
+
+def test_remove_command_removes_existing_safe_without_classifier_help() -> None:
+    commands, safe_service, contract_service, eoa_service = make_commands({})
+
+    message = commands.handle_remove("0xB3696A817D01C8623E66D156B6798291fa10a46d")
+
+    assert "Removed safe" in message
+    assert safe_service.remove_calls == ["0xB3696A817D01C8623E66D156B6798291fa10a46d"]
+    assert contract_service.remove_calls == []
+    assert eoa_service.remove_calls == []
+
+
+def test_list_command_aggregates_all_monitored_address_types() -> None:
+    commands, _, _, _ = make_commands({})
+
+    message = commands.handle_list()
+
+    assert "Treasury Safe" in message
     assert "High Volume Contract" in message
-    assert contract_service.contracts[0].contract_address in message
+    assert "Trader Wallet" in message
+    assert "Safe" in message
+    assert "Contract" in message
+    assert "EOA" in message

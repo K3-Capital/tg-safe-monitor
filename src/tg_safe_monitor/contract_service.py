@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
+
 from eth_utils import is_address, to_checksum_address
 
 from .models import AddContractResult, ContractCallTransaction, ContractMonitorNotification
 from .storage import MonitorRepository
 
-LAST_SCANNED_BLOCK_KEY = "ethereum_mainnet_last_scanned_block"
+LAST_SCANNED_BLOCK_KEY = "ethereum_mainnet_contract_last_scanned_block"
 
 
 class ContractAlreadyMonitoredError(ValueError):
@@ -83,6 +85,9 @@ class ContractMonitorService:
                     continue
                 if self.repository.has_seen_contract_transaction(contract.contract_address, normalized_transaction.tx_hash):
                     continue
+                receipt = await self.rpc_client.get_transaction_receipt(normalized_transaction.tx_hash)
+                if not self._receipt_succeeded(receipt):
+                    continue
                 self.repository.record_seen_contract_transaction(
                     contract.contract_address,
                     normalized_transaction.tx_hash,
@@ -104,6 +109,17 @@ class ContractMonitorService:
         if not is_address(contract_address):
             raise ValueError(f"Invalid contract address: {contract_address}")
         return to_checksum_address(contract_address)
+
+    @staticmethod
+    def _receipt_succeeded(receipt: Mapping[str, object] | None) -> bool:
+        if not receipt:
+            return False
+        status = receipt.get("status")
+        if isinstance(status, str):
+            return int(status, 16) == 1 if status.startswith("0x") else int(status) == 1
+        if isinstance(status, int):
+            return status == 1
+        return False
 
     @staticmethod
     def _normalize_transaction(transaction: object) -> ContractCallTransaction:
