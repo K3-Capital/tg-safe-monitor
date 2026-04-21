@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 from dataclasses import dataclass
 
-from eth_utils import is_address, to_checksum_address
+from eth_utils.address import is_address, to_checksum_address
 
 from .models import AddSafeResult, MonitorNotification
 from .storage import MonitorRepository

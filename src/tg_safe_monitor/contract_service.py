@@ -3,9 +3,13 @@ from __future__ import annotations
 import asyncio
 from collections.abc import Mapping
 
-from eth_utils import is_address, to_checksum_address
+from eth_utils.address import is_address, to_checksum_address
 
-from .models import AddContractResult, ContractCallTransaction, ContractMonitorNotification
+from .models import (
+    AddContractResult,
+    ContractCallTransaction,
+    ContractMonitorNotification,
+)
 from .storage import MonitorRepository
 
 LAST_SCANNED_BLOCK_KEY = "ethereum_mainnet_contract_last_scanned_block"

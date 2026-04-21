@@ -4,7 +4,11 @@ import asyncio
 import logging
 from collections.abc import Awaitable, Callable
 
-from .messages import format_new_contract_call_message, format_new_eoa_transaction_message, format_new_transaction_message
+from .messages import (
+    format_new_contract_call_message,
+    format_new_eoa_transaction_message,
+    format_new_transaction_message,
+)
 
 logger = logging.getLogger(__name__)
 

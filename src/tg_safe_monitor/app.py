@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from typing import Any, cast
 
 from telegram.constants import ParseMode
 
@@ -20,8 +21,13 @@ from .storage import PostgresMonitorRepository
 logger = logging.getLogger(__name__)
 
 
+def load_settings() -> Settings:
+    settings_factory = cast(Any, Settings)
+    return settings_factory()
+
+
 def run() -> None:
-    settings = Settings()
+    settings = load_settings()
     logging.basicConfig(
         level=getattr(logging, settings.log_level.upper(), logging.INFO),
         format="%(asctime)s %(levelname)s [%(name)s] %(message)s",
