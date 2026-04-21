@@ -3,6 +3,8 @@ from __future__ import annotations
 import asyncio
 import logging
 
+from telegram.constants import ParseMode
+
 from .address_classifier import AddressClassifier
 from .bot import build_application
 from .bot_logic import CommandService
@@ -37,7 +39,7 @@ def run() -> None:
 
     async def post_init(app) -> None:
         async def send_message(text: str) -> None:
-            await app.bot.send_message(chat_id=settings.telegram_chat_id, text=text)
+            await app.bot.send_message(chat_id=settings.telegram_chat_id, text=text, parse_mode=ParseMode.MARKDOWN)
 
         loops = [
             SafeMonitorLoop(safe_service, send_message=send_message, poll_interval_seconds=settings.poll_interval_seconds),

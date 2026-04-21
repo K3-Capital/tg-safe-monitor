@@ -12,8 +12,13 @@ def _etherscan_tx_link(tx_hash: str) -> str:
 
 
 def format_address_link(address: str, label: str | None = None) -> str:
-    target = format_target(label, address)
-    return f"[{target}](https://etherscan.io/address/{address})"
+    prefix = f"{label} — " if label else ""
+    links = (
+        f"[scan](https://etherscan.io/address/{address})"
+        f" | [debank](https://debank.com/profile/{address})"
+        f" | [arkham](https://intel.arkm.com/explorer/address/{address})"
+    )
+    return f"{prefix}`{address}` {links}"
 
 
 def _safe_app_link(safe_address: str, safe_tx_hash: str) -> str:

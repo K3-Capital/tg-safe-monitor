@@ -4,6 +4,7 @@ import logging
 from typing import Final
 
 from telegram import Update
+from telegram.constants import ParseMode
 from telegram.ext import Application, ApplicationBuilder, CommandHandler, ContextTypes
 
 from .bot_logic import CommandService
@@ -91,4 +92,4 @@ async def _ensure_allowed(update: Update, settings: Settings) -> bool:
 
 async def _reply(update: Update, text: str) -> None:
     if update.effective_message is not None:
-        await update.effective_message.reply_text(text)
+        await update.effective_message.reply_text(text, parse_mode=ParseMode.MARKDOWN)

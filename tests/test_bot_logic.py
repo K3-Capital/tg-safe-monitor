@@ -196,6 +196,6 @@ def test_list_command_aggregates_all_monitored_address_types() -> None:
     assert "Safe" in message
     assert "Contract" in message
     assert "EOA" in message
-    assert "[Treasury Safe (0xB3696A817D01C8623E66D156B6798291fa10a46d)](https://etherscan.io/address/0xB3696A817D01C8623E66D156B6798291fa10a46d)" in message
-    assert "[High Volume Contract (0xbd216513d74c8cf14cf4747e6aaa6420ff64ee9e)](https://etherscan.io/address/0xbd216513d74c8cf14cf4747e6aaa6420ff64ee9e)" in message
-    assert "[Trader Wallet (0x1111111111111111111111111111111111111111)](https://etherscan.io/address/0x1111111111111111111111111111111111111111)" in message
+    assert "Treasury Safe — `0xB3696A817D01C8623E66D156B6798291fa10a46d` [scan](https://etherscan.io/address/0xB3696A817D01C8623E66D156B6798291fa10a46d) | [debank](https://debank.com/profile/0xB3696A817D01C8623E66D156B6798291fa10a46d) | [arkham](https://intel.arkm.com/explorer/address/0xB3696A817D01C8623E66D156B6798291fa10a46d)" in message
+    assert "High Volume Contract — `0xbd216513d74c8cf14cf4747e6aaa6420ff64ee9e` [scan](https://etherscan.io/address/0xbd216513d74c8cf14cf4747e6aaa6420ff64ee9e) | [debank](https://debank.com/profile/0xbd216513d74c8cf14cf4747e6aaa6420ff64ee9e) | [arkham](https://intel.arkm.com/explorer/address/0xbd216513d74c8cf14cf4747e6aaa6420ff64ee9e)" in message
+    assert "Trader Wallet — `0x1111111111111111111111111111111111111111` [scan](https://etherscan.io/address/0x1111111111111111111111111111111111111111) | [debank](https://debank.com/profile/0x1111111111111111111111111111111111111111) | [arkham](https://intel.arkm.com/explorer/address/0x1111111111111111111111111111111111111111)" in message
