@@ -1,12 +1,10 @@
-import tempfile
 from dataclasses import dataclass
-from pathlib import Path
 
 import pytest
 
 from tg_safe_monitor.models import SafeTransaction
 from tg_safe_monitor.service import SafeMonitorService, SafeMonitorSettings
-from tg_safe_monitor.storage import MonitorRepository
+from tg_safe_monitor.storage import InMemoryMonitorRepository
 
 
 @dataclass
@@ -28,8 +26,8 @@ class FakeSafeClient:
 
 
 @pytest.fixture()
-def repo(tmp_path: Path) -> MonitorRepository:
-    return MonitorRepository(tmp_path / "monitor.db")
+def repo() -> InMemoryMonitorRepository:
+    return InMemoryMonitorRepository()
 
 
 def tx(uid: str, *, executed: bool = False, nonce: int = 1) -> SafeTransaction:
@@ -50,7 +48,7 @@ def tx(uid: str, *, executed: bool = False, nonce: int = 1) -> SafeTransaction:
 
 
 @pytest.mark.asyncio
-async def test_add_safe_bootstraps_existing_transactions_without_alerting(repo: MonitorRepository) -> None:
+async def test_add_safe_bootstraps_existing_transactions_without_alerting(repo: InMemoryMonitorRepository) -> None:
     client = FakeSafeClient(
         {
             "0xB3696A817D01C8623E66D156B6798291fa10a46d": [
@@ -80,7 +78,7 @@ async def test_add_safe_bootstraps_existing_transactions_without_alerting(repo: 
 
 
 @pytest.mark.asyncio
-async def test_poll_once_notifies_only_new_transactions(repo: MonitorRepository) -> None:
+async def test_poll_once_notifies_only_new_transactions(repo: InMemoryMonitorRepository) -> None:
     safe = "0xB3696A817D01C8623E66D156B6798291fa10a46d"
     client = FakeSafeClient(
         {
@@ -103,7 +101,7 @@ async def test_poll_once_notifies_only_new_transactions(repo: MonitorRepository)
 
 
 @pytest.mark.asyncio
-async def test_remove_safe_stops_future_monitoring(repo: MonitorRepository) -> None:
+async def test_remove_safe_stops_future_monitoring(repo: InMemoryMonitorRepository) -> None:
     safe = "0xB3696A817D01C8623E66D156B6798291fa10a46d"
     client = FakeSafeClient(
         {

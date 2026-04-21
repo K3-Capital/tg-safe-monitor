@@ -29,7 +29,7 @@ Copy `.env.example` to `.env` and fill in the values:
 - `SAFE_API_TOKEN` — Safe API authorization token sent as the raw `Authorization` header value
 - `SAFE_API_BASE_URL` — Safe transaction service base URL
 - `POLL_INTERVAL_SECONDS` — polling interval for new transactions
-- `SQLITE_PATH` — SQLite database file path
+- `DATABASE_URL` — PostgreSQL connection string used for bot state
 - `LOG_LEVEL` — runtime log level
 
 ## Local development with uv
@@ -39,8 +39,14 @@ This project uses **uv** for Python version and package management.
 ### First-time setup
 
 ```bash
-uv python pin 3.12
+cp .env.example .env
 uv sync --extra dev
+```
+
+Use your existing DigitalOcean/Postgres connection string, for example:
+
+```bash
+DATABASE_URL="postgresql://user:password@db-host:25060/defaultdb?sslmode=require"
 ```
 
 ### Run tests
@@ -61,7 +67,7 @@ uv run python -m tg_safe_monitor
 docker compose up --build -d
 ```
 
-Persistent data is stored in `./data` via the mounted SQLite volume.
+The container expects an external PostgreSQL database via `DATABASE_URL`.
 
 ## Add a Safe workflow
 

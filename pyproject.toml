@@ -8,6 +8,7 @@ dependencies = [
   "python-telegram-bot>=22.0",
   "httpx>=0.28.1",
   "pydantic-settings>=2.8.1",
+  "psycopg[binary]>=3.2.9",
   "eth-utils>=5.3.1",
   "eth-hash[pycryptodome]>=0.8.0",
 ]

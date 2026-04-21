@@ -9,7 +9,7 @@ from .config import Settings
 from .monitor import SafeMonitorLoop
 from .safe_api import SafeApiClient
 from .service import SafeMonitorService, SafeMonitorSettings
-from .storage import MonitorRepository
+from .storage import PostgresMonitorRepository
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +21,7 @@ def run() -> None:
         format="%(asctime)s %(levelname)s [%(name)s] %(message)s",
     )
 
-    repository = MonitorRepository(settings.sqlite_path)
+    repository = PostgresMonitorRepository(settings.database_url)
     safe_client = SafeApiClient(settings.safe_api_base_url, token=settings.safe_api_token)
     monitor_service = SafeMonitorService(
         repository,

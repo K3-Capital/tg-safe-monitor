@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from pathlib import Path
-
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -18,7 +16,7 @@ class Settings(BaseSettings):
         alias="SAFE_API_BASE_URL",
     )
     poll_interval_seconds: int = Field(default=60, alias="POLL_INTERVAL_SECONDS")
-    sqlite_path: Path = Field(default=Path("/app/data/tg-safe-monitor.db"), alias="SQLITE_PATH")
+    database_url: str = Field(alias="DATABASE_URL")
     log_level: str = Field(default="INFO", alias="LOG_LEVEL")
 
     @property
