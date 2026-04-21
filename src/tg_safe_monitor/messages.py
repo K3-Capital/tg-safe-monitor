@@ -11,6 +11,11 @@ def _etherscan_tx_link(tx_hash: str) -> str:
     return f"https://etherscan.io/tx/{tx_hash}"
 
 
+def format_address_link(address: str, label: str | None = None) -> str:
+    target = format_target(label, address)
+    return f"[{target}](https://etherscan.io/address/{address})"
+
+
 def _safe_app_link(safe_address: str, safe_tx_hash: str) -> str:
     return f"https://app.safe.global/transactions/tx?safe=eth:{safe_address}&id=multisig_{safe_address}_{safe_tx_hash}"
 

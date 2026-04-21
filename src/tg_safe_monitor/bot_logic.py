@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 from .messages import (
+    format_address_link,
     format_bootstrap_message,
     format_contract_bootstrap_message,
     format_eoa_bootstrap_message,
-    format_target,
 )
 from .models import AddressType
 
@@ -44,7 +44,7 @@ class CommandService:
         if not safes and not contracts and not eoas:
             return "No addresses are currently being monitored."
         lines = ["Currently monitored addresses:"]
-        lines.extend(f"- Safe: {format_target(item.label, item.safe_address)}" for item in safes)
-        lines.extend(f"- Contract: {format_target(item.label, item.contract_address)}" for item in contracts)
-        lines.extend(f"- EOA: {format_target(item.label, item.eoa_address)}" for item in eoas)
+        lines.extend(f"- Safe: {format_address_link(item.safe_address, item.label)}" for item in safes)
+        lines.extend(f"- Contract: {format_address_link(item.contract_address, item.label)}" for item in contracts)
+        lines.extend(f"- EOA: {format_address_link(item.eoa_address, item.label)}" for item in eoas)
         return "\n".join(lines)
