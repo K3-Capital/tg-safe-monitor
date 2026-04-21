@@ -1,0 +1,33 @@
+[project]
+name = "tg-safe-monitor"
+version = "0.1.0"
+description = "Telegram bot that monitors Gnosis Safe transactions and alerts on newly seen activity"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+  "python-telegram-bot>=22.0",
+  "httpx>=0.28.1",
+  "pydantic-settings>=2.8.1",
+  "eth-utils>=5.3.1",
+  "eth-hash[pycryptodome]>=0.8.0",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.3.5",
+  "pytest-asyncio>=0.26.0",
+]
+
+[build-system]
+requires = ["setuptools>=75.8.0", "wheel>=0.45.1"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]

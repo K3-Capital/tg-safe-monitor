@@ -1,0 +1,9 @@
+services:
+  tg-safe-monitor:
+    build: .
+    container_name: tg-safe-monitor
+    restart: unless-stopped
+    env_file:
+      - .env
+    volumes:
+      - ./data:/app/data
