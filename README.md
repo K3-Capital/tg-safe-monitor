@@ -74,10 +74,12 @@ DATABASE_URL="postgresql://user:***@db-host:25060/defaultdb?sslmode=require"
 ETHEREUM_RPC_URL="https://mainnet.gateway.tenderly.co/your-key"
 ```
 
-### Run tests
+### Run quality checks
 
 ```bash
-uv run pytest
+uv run ruff check .
+uv run pyright
+uv run pytest -q
 ```
 
 ### Run the bot locally

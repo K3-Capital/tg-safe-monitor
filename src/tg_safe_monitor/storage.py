@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import Protocol
+from typing import Any, Mapping, Protocol, cast
 
 import psycopg
 from psycopg.rows import dict_row
@@ -129,8 +129,12 @@ class PostgresMonitorRepository:
         self.database_url = database_url
         self._initialize()
 
-    def _connect(self) -> psycopg.Connection:
-        return psycopg.connect(self.database_url, row_factory=dict_row)
+    def _connect(self) -> psycopg.Connection[dict[str, Any]]:
+        connection = psycopg.connect(
+            self.database_url,
+            row_factory=cast(Any, dict_row),
+        )
+        return cast(psycopg.Connection[dict[str, Any]], connection)
 
     def _initialize(self) -> None:
         with self._connect() as connection:
@@ -260,7 +264,10 @@ class PostgresMonitorRepository:
             with connection.cursor() as cursor:
                 cursor.execute("SELECT monitor_value FROM monitor_state WHERE monitor_key = %s", (key,))
                 row = cursor.fetchone()
-        return row["monitor_value"] if row is not None else None
+        if row is None:
+            return None
+        monitor_value = row.get("monitor_value")
+        return monitor_value if isinstance(monitor_value, str) else str(monitor_value)
 
     def set_monitor_state(self, key: str, value: str) -> None:
         with self._connect() as connection:
@@ -268,21 +275,21 @@ class PostgresMonitorRepository:
                 cursor.execute("INSERT INTO monitor_state (monitor_key, monitor_value) VALUES (%s, %s) ON CONFLICT (monitor_key) DO UPDATE SET monitor_value = EXCLUDED.monitor_value", (key, value))
 
     @staticmethod
-    def _to_monitored_safe(row: dict) -> MonitoredSafe:
+    def _to_monitored_safe(row: Mapping[str, Any]) -> MonitoredSafe:
         added_at = row["added_at"]
         if isinstance(added_at, datetime):
             added_at = added_at.isoformat()
         return MonitoredSafe(safe_address=row["safe_address"], added_by_user_id=row["added_by_user_id"], added_by_username=row["added_by_username"], bootstrap_transaction_count=row["bootstrap_transaction_count"], added_at=added_at, label=row.get("label"))
 
     @staticmethod
-    def _to_monitored_contract(row: dict) -> MonitoredContract:
+    def _to_monitored_contract(row: Mapping[str, Any]) -> MonitoredContract:
         added_at = row["added_at"]
         if isinstance(added_at, datetime):
             added_at = added_at.isoformat()
         return MonitoredContract(contract_address=row["contract_address"], added_by_user_id=row["added_by_user_id"], added_by_username=row["added_by_username"], start_block=int(row["start_block"]), added_at=added_at, label=row.get("label"))
 
     @staticmethod
-    def _to_monitored_eoa(row: dict) -> MonitoredEoa:
+    def _to_monitored_eoa(row: Mapping[str, Any]) -> MonitoredEoa:
         added_at = row["added_at"]
         if isinstance(added_at, datetime):
             added_at = added_at.isoformat()

@@ -1,4 +1,7 @@
+from typing import cast
+
 import pytest
+from telegram import Update
 from telegram.constants import ParseMode
 
 from tg_safe_monitor.bot import _reply
@@ -22,7 +25,7 @@ async def test_reply_uses_markdown_parse_mode_for_inline_links() -> None:
     message = FakeMessage()
     update = FakeUpdate(message)
 
-    await _reply(update, "See [label](https://etherscan.io/address/0x123)")
+    await _reply(cast(Update, update), "See [label](https://etherscan.io/address/0x123)")
 
     assert message.calls == [
         (

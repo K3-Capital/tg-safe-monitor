@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from eth_utils import is_address, to_checksum_address
+from eth_utils.address import is_address, to_checksum_address
 
 from .models import AddressType, ClassifiedAddress
 

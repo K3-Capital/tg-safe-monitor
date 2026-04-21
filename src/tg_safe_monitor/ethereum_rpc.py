@@ -24,9 +24,11 @@ class EthereumRpcClient:
 
     async def get_block_with_transactions(self, block_number: int) -> list[ContractCallTransaction]:
         result = await self._rpc("eth_getBlockByNumber", [hex(block_number), True])
-        if not result:
+        if not isinstance(result, Mapping):
             return []
         transactions = result.get("transactions", [])
+        if not isinstance(transactions, list):
+            return []
         return [self._parse_transaction(tx) for tx in transactions if isinstance(tx, Mapping)]
 
     async def get_transaction_receipt(self, tx_hash: str) -> Mapping[str, object] | None:

@@ -1,6 +1,10 @@
 from __future__ import annotations
 
-from .models import ContractMonitorNotification, EoaMonitorNotification, MonitorNotification
+from .models import (
+    ContractMonitorNotification,
+    EoaMonitorNotification,
+    MonitorNotification,
+)
 
 
 def format_target(label: str | None, address: str) -> str:

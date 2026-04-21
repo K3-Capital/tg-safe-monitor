@@ -6,21 +6,25 @@ from .ethereum_rpc import EthereumRpcClient
 from .models import (
     AddContractResult,
     AddEoaResult,
-    AddSafeResult,
     AddressType,
+    AddSafeResult,
     ClassifiedAddress,
     ContractCallTransaction,
     ContractMonitorNotification,
     EoaMonitorNotification,
     EoaTransaction,
-    MonitorNotification,
     MonitoredContract,
     MonitoredEoa,
     MonitoredSafe,
+    MonitorNotification,
     SafeTransaction,
 )
 from .service import SafeAlreadyMonitoredError, SafeMonitorService, SafeMonitorSettings
-from .storage import InMemoryMonitorRepository, MonitorRepository, PostgresMonitorRepository
+from .storage import (
+    InMemoryMonitorRepository,
+    MonitorRepository,
+    PostgresMonitorRepository,
+)
 
 __all__ = [
     "AddContractResult",

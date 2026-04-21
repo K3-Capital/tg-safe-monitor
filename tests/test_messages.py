@@ -1,5 +1,16 @@
-from tg_safe_monitor.messages import format_new_contract_call_message, format_new_eoa_transaction_message, format_new_transaction_message
-from tg_safe_monitor.models import ContractCallTransaction, ContractMonitorNotification, EoaMonitorNotification, EoaTransaction, MonitorNotification, SafeTransaction
+from tg_safe_monitor.messages import (
+    format_new_contract_call_message,
+    format_new_eoa_transaction_message,
+    format_new_transaction_message,
+)
+from tg_safe_monitor.models import (
+    ContractCallTransaction,
+    ContractMonitorNotification,
+    EoaMonitorNotification,
+    EoaTransaction,
+    MonitorNotification,
+    SafeTransaction,
+)
 
 
 def test_safe_message_includes_safe_app_link() -> None:

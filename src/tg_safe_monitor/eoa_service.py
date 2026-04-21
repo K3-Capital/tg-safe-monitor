@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 
-from eth_utils import is_address, to_checksum_address
+from eth_utils.address import is_address, to_checksum_address
 
 from .models import AddEoaResult, EoaMonitorNotification, EoaTransaction
 from .storage import MonitorRepository

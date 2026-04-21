@@ -91,11 +91,18 @@ def _string_or_none(value: object) -> str | None:
 def _int_or_none(value: object) -> int | None:
     if value is None:
         return None
-    try:
+    if isinstance(value, bool):
         return int(value)
-    except (TypeError, ValueError):
-        logger.debug("Could not coerce value %r to int", value)
-        return None
+    if isinstance(value, int):
+        return value
+    if isinstance(value, str):
+        try:
+            return int(value)
+        except ValueError:
+            logger.debug("Could not coerce value %r to int", value)
+            return None
+    logger.debug("Could not coerce value %r to int", value)
+    return None
 
 
 def _extract_proposer(value: object) -> str | None:
