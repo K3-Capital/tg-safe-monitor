@@ -4,7 +4,7 @@ from dataclasses import dataclass
 
 from eth_utils import is_address, to_checksum_address
 
-from .models import AddSafeResult, MonitorNotification, SafeTransaction
+from .models import AddSafeResult, MonitorNotification
 from .storage import MonitorRepository
 
 
@@ -29,6 +29,7 @@ class SafeMonitorService:
         *,
         added_by_user_id: int | None,
         added_by_username: str | None,
+        label: str | None = None,
     ) -> AddSafeResult:
         normalized = self.normalize_safe_address(safe_address)
         if self.repository.is_safe_monitored(normalized):
@@ -39,16 +40,24 @@ class SafeMonitorService:
             added_by_user_id=added_by_user_id,
             added_by_username=added_by_username,
             bootstrap_transaction_count=len(transactions),
+            label=label,
         )
         for transaction in transactions:
             self.repository.record_seen_transaction(normalized, transaction.tx_uid)
-        return AddSafeResult(safe_address=normalized, bootstrap_transaction_count=len(transactions))
+        return AddSafeResult(
+            safe_address=normalized,
+            bootstrap_transaction_count=len(transactions),
+            label=label,
+        )
 
     def remove_safe(self, safe_address: str) -> bool:
         return self.repository.remove_safe(self.normalize_safe_address(safe_address))
 
     def list_safe_addresses(self) -> list[str]:
         return self.repository.list_safe_addresses()
+
+    def list_safes(self):
+        return self.repository.list_safes()
 
     def is_safe_monitored(self, safe_address: str) -> bool:
         return self.repository.is_safe_monitored(self.normalize_safe_address(safe_address))
@@ -68,6 +77,7 @@ class SafeMonitorService:
                     MonitorNotification(
                         safe_address=monitored_safe.safe_address,
                         transaction=transaction,
+                        label=monitored_safe.label,
                     )
                 )
         return notifications

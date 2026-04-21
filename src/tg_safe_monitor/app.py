@@ -6,7 +6,9 @@ import logging
 from .bot import build_application
 from .bot_logic import CommandService
 from .config import Settings
-from .monitor import SafeMonitorLoop
+from .contract_service import ContractMonitorService
+from .ethereum_rpc import EthereumRpcClient
+from .monitor import ContractMonitorLoop, SafeMonitorLoop
 from .safe_api import SafeApiClient
 from .service import SafeMonitorService, SafeMonitorSettings
 from .storage import PostgresMonitorRepository
@@ -23,40 +25,54 @@ def run() -> None:
 
     repository = PostgresMonitorRepository(settings.database_url)
     safe_client = SafeApiClient(settings.safe_api_base_url, token=settings.safe_api_token)
-    monitor_service = SafeMonitorService(
+    rpc_client = EthereumRpcClient(settings.ethereum_rpc_url)
+    safe_service = SafeMonitorService(
         repository,
         safe_client,
         SafeMonitorSettings(poll_interval_seconds=settings.poll_interval_seconds),
     )
-    command_service = CommandService(monitor_service)
+    contract_service = ContractMonitorService(
+        repository,
+        rpc_client=rpc_client,
+        confirmation_blocks=settings.ethereum_confirmation_blocks,
+    )
+    command_service = CommandService(safe_service=safe_service, contract_service=contract_service)
     application = build_application(settings, command_service)
 
     async def post_init(app) -> None:
         async def send_message(text: str) -> None:
             await app.bot.send_message(chat_id=settings.telegram_chat_id, text=text)
 
-        monitor_loop = SafeMonitorLoop(
-            monitor_service,
+        safe_loop = SafeMonitorLoop(
+            safe_service,
             send_message=send_message,
             poll_interval_seconds=settings.poll_interval_seconds,
         )
-        task = asyncio.create_task(monitor_loop.run(), name="safe-monitor-loop")
-        app.bot_data["monitor_loop"] = monitor_loop
-        app.bot_data["monitor_task"] = task
-        logger.info("Started monitor loop for chat %s", settings.telegram_chat_id)
+        contract_loop = ContractMonitorLoop(
+            contract_service,
+            send_message=send_message,
+            poll_interval_seconds=settings.poll_interval_seconds,
+        )
+        tasks = [
+            asyncio.create_task(safe_loop.run(), name="safe-monitor-loop"),
+            asyncio.create_task(contract_loop.run(), name="contract-monitor-loop"),
+        ]
+        app.bot_data["monitor_loops"] = [safe_loop, contract_loop]
+        app.bot_data["monitor_tasks"] = tasks
+        logger.info("Started monitor loops for chat %s", settings.telegram_chat_id)
 
     async def post_shutdown(app) -> None:
-        monitor_loop = app.bot_data.get("monitor_loop")
-        monitor_task = app.bot_data.get("monitor_task")
-        if monitor_loop is not None:
-            monitor_loop.stop()
-        if monitor_task is not None:
-            monitor_task.cancel()
+        for loop in app.bot_data.get("monitor_loops", []):
+            loop.stop()
+        for task in app.bot_data.get("monitor_tasks", []):
+            task.cancel()
+        for task in app.bot_data.get("monitor_tasks", []):
             try:
-                await monitor_task
+                await task
             except asyncio.CancelledError:
                 pass
         await safe_client.aclose()
+        await rpc_client.aclose()
         logger.info("Shutdown complete")
 
     application.post_init = post_init

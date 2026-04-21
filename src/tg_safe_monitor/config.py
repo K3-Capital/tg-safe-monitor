@@ -17,19 +17,17 @@ class Settings(BaseSettings):
     )
     poll_interval_seconds: int = Field(default=60, alias="POLL_INTERVAL_SECONDS")
     database_url: str = Field(alias="DATABASE_URL")
+    ethereum_rpc_url: str = Field(alias="ETHEREUM_RPC_URL")
+    ethereum_confirmation_blocks: int = Field(default=0, alias="ETHEREUM_CONFIRMATION_BLOCKS")
     log_level: str = Field(default="INFO", alias="LOG_LEVEL")
 
     @property
     def tg_admin_user_ids(self) -> set[int]:
         if not self.tg_admin_user_ids_raw.strip():
             return set()
-        return {
-            int(part.strip())
-            for part in self.tg_admin_user_ids_raw.split(",")
-            if part.strip()
-        }
+        return {int(part.strip()) for part in self.tg_admin_user_ids_raw.split(",") if part.strip()}
 
-    @field_validator("safe_api_base_url")
+    @field_validator("safe_api_base_url", "ethereum_rpc_url")
     @classmethod
-    def trim_base_url(cls, value: str) -> str:
+    def trim_url(cls, value: str) -> str:
         return value.rstrip("/")
