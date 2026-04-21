@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from dataclasses import dataclass
 
 from eth_utils import is_address, to_checksum_address
@@ -32,10 +33,11 @@ class SafeMonitorService:
         label: str | None = None,
     ) -> AddSafeResult:
         normalized = self.normalize_safe_address(safe_address)
-        if self.repository.is_safe_monitored(normalized):
+        if await asyncio.to_thread(self.repository.is_safe_monitored, normalized):
             raise SafeAlreadyMonitoredError(f"Safe {normalized} is already being monitored")
         transactions = await self.safe_client.list_transactions(normalized)
-        self.repository.add_safe(
+        await asyncio.to_thread(
+            self.repository.add_safe,
             normalized,
             added_by_user_id=added_by_user_id,
             added_by_username=added_by_username,
@@ -43,7 +45,7 @@ class SafeMonitorService:
             label=label,
         )
         for transaction in transactions:
-            self.repository.record_seen_transaction(normalized, transaction.tx_uid)
+            await asyncio.to_thread(self.repository.record_seen_transaction, normalized, transaction.tx_uid)
         return AddSafeResult(
             safe_address=normalized,
             bootstrap_transaction_count=len(transactions),
@@ -64,15 +66,15 @@ class SafeMonitorService:
 
     async def poll_once(self) -> list[MonitorNotification]:
         notifications: list[MonitorNotification] = []
-        for monitored_safe in self.repository.list_safes():
+        for monitored_safe in await asyncio.to_thread(self.repository.list_safes):
             transactions = await self.safe_client.list_transactions(monitored_safe.safe_address)
             unseen = [
                 transaction
                 for transaction in transactions
-                if not self.repository.has_seen_transaction(monitored_safe.safe_address, transaction.tx_uid)
+                if not await asyncio.to_thread(self.repository.has_seen_transaction, monitored_safe.safe_address, transaction.tx_uid)
             ]
             for transaction in reversed(unseen):
-                self.repository.record_seen_transaction(monitored_safe.safe_address, transaction.tx_uid)
+                await asyncio.to_thread(self.repository.record_seen_transaction, monitored_safe.safe_address, transaction.tx_uid)
                 notifications.append(
                     MonitorNotification(
                         safe_address=monitored_safe.safe_address,

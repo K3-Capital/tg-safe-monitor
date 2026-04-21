@@ -12,7 +12,7 @@ def _etherscan_tx_link(tx_hash: str) -> str:
 
 
 def format_address_link(address: str, label: str | None = None) -> str:
-    prefix = f"{label} — " if label else ""
+    prefix = f"*{label}* — " if label else ""
     links = (
         f"[scan](https://etherscan.io/address/{address})"
         f" | [debank](https://debank.com/profile/{address})"

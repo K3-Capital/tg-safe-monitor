@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from collections.abc import Mapping
 
 from eth_utils import is_address, to_checksum_address
@@ -29,18 +30,19 @@ class ContractMonitorService:
         label: str | None = None,
     ) -> AddContractResult:
         normalized = self.normalize_contract_address(contract_address)
-        if self.repository.is_contract_monitored(normalized):
+        if await asyncio.to_thread(self.repository.is_contract_monitored, normalized):
             raise ContractAlreadyMonitoredError(f"Contract {normalized} is already being monitored")
         current_block = await self.rpc_client.get_block_number()
-        self.repository.add_contract(
+        await asyncio.to_thread(
+            self.repository.add_contract,
             normalized,
             added_by_user_id=added_by_user_id,
             added_by_username=added_by_username,
             start_block=current_block,
             label=label,
         )
-        if self.repository.get_monitor_state(LAST_SCANNED_BLOCK_KEY) is None:
-            self.repository.set_monitor_state(LAST_SCANNED_BLOCK_KEY, str(current_block))
+        if await asyncio.to_thread(self.repository.get_monitor_state, LAST_SCANNED_BLOCK_KEY) is None:
+            await asyncio.to_thread(self.repository.set_monitor_state, LAST_SCANNED_BLOCK_KEY, str(current_block))
         return AddContractResult(contract_address=normalized, start_block=current_block, label=label)
 
     def remove_contract(self, contract_address: str) -> bool:
@@ -53,15 +55,15 @@ class ContractMonitorService:
         return self.repository.list_contract_addresses()
 
     async def poll_once(self) -> list[ContractMonitorNotification]:
-        monitored_contracts = self.repository.list_contracts()
+        monitored_contracts = await asyncio.to_thread(self.repository.list_contracts)
         if not monitored_contracts:
             return []
 
         current_block = await self.rpc_client.get_block_number()
         head_block = max(current_block - self.confirmation_blocks, 0)
-        state = self.repository.get_monitor_state(LAST_SCANNED_BLOCK_KEY)
+        state = await asyncio.to_thread(self.repository.get_monitor_state, LAST_SCANNED_BLOCK_KEY)
         if state is None:
-            self.repository.set_monitor_state(LAST_SCANNED_BLOCK_KEY, str(head_block))
+            await asyncio.to_thread(self.repository.set_monitor_state, LAST_SCANNED_BLOCK_KEY, str(head_block))
             return []
 
         last_scanned_block = int(state)
@@ -83,12 +85,13 @@ class ContractMonitorService:
                 contract = contract_map.get(normalized_to.lower())
                 if contract is None:
                     continue
-                if self.repository.has_seen_contract_transaction(contract.contract_address, normalized_transaction.tx_hash):
+                if await asyncio.to_thread(self.repository.has_seen_contract_transaction, contract.contract_address, normalized_transaction.tx_hash):
                     continue
                 receipt = await self.rpc_client.get_transaction_receipt(normalized_transaction.tx_hash)
                 if not self._receipt_succeeded(receipt):
                     continue
-                self.repository.record_seen_contract_transaction(
+                await asyncio.to_thread(
+                    self.repository.record_seen_contract_transaction,
                     contract.contract_address,
                     normalized_transaction.tx_hash,
                     normalized_transaction.block_number,
@@ -100,7 +103,7 @@ class ContractMonitorService:
                         label=contract.label,
                     )
                 )
-            self.repository.set_monitor_state(LAST_SCANNED_BLOCK_KEY, str(block_number))
+            await asyncio.to_thread(self.repository.set_monitor_state, LAST_SCANNED_BLOCK_KEY, str(block_number))
 
         return notifications
 

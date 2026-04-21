@@ -1,3 +1,4 @@
+import threading
 from dataclasses import dataclass
 
 import pytest
@@ -120,3 +121,49 @@ async def test_remove_safe_stops_future_monitoring(repo: InMemoryMonitorReposito
     assert removed is True
     assert notifications == []
     assert repo.list_safes() == []
+
+
+class ThreadCheckingSafeRepository(InMemoryMonitorRepository):
+    def __init__(self, event_loop_thread_id: int) -> None:
+        super().__init__()
+        self.event_loop_thread_id = event_loop_thread_id
+        self.observed_threads: list[int] = []
+
+    def list_safes(self):
+        self.observed_threads.append(threading.get_ident())
+        assert threading.get_ident() != self.event_loop_thread_id
+        return super().list_safes()
+
+    def has_seen_transaction(self, safe_address: str, tx_uid: str) -> bool:
+        self.observed_threads.append(threading.get_ident())
+        assert threading.get_ident() != self.event_loop_thread_id
+        return super().has_seen_transaction(safe_address, tx_uid)
+
+    def record_seen_transaction(self, safe_address: str, tx_uid: str) -> None:
+        self.observed_threads.append(threading.get_ident())
+        assert threading.get_ident() != self.event_loop_thread_id
+        return super().record_seen_transaction(safe_address, tx_uid)
+
+
+@pytest.mark.asyncio
+async def test_poll_once_offloads_safe_repository_access_from_event_loop() -> None:
+    safe = "0xB3696A817D01C8623E66D156B6798291fa10a46d"
+    repo = ThreadCheckingSafeRepository(threading.get_ident())
+    client = FakeSafeClient(
+        {
+            safe: [
+                [tx("safe-tx-2", nonce=2), tx("safe-tx-1")],
+            ]
+        }
+    )
+    service = SafeMonitorService(repo, client, SafeMonitorSettings(poll_interval_seconds=60))
+    normalized_safe = service.normalize_safe_address(safe)
+    repo.add_safe(normalized_safe, added_by_user_id=42, added_by_username="val", bootstrap_transaction_count=1)
+    InMemoryMonitorRepository.record_seen_transaction(repo, normalized_safe, "safe-tx-1")
+    repo.observed_threads.clear()
+
+    notifications = await service.poll_once()
+
+    assert len(notifications) == 1
+    assert notifications[0].transaction.tx_uid == "safe-tx-2"
+    assert repo.observed_threads
