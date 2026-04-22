@@ -11,6 +11,10 @@ def format_target(label: str | None, address: str) -> str:
     return f"{label} ({address})" if label else address
 
 
+def _markdown_link(label: str, url: str) -> str:
+    return f"[{label}]({url})"
+
+
 def _etherscan_tx_link(tx_hash: str) -> str:
     return f"https://etherscan.io/tx/{tx_hash}"
 
@@ -18,9 +22,9 @@ def _etherscan_tx_link(tx_hash: str) -> str:
 def format_address_link(address: str, label: str | None = None) -> str:
     prefix = f"*{label}* — " if label else ""
     links = (
-        f"[scan](https://etherscan.io/address/{address})"
-        f" | [debank](https://debank.com/profile/{address})"
-        f" | [arkham](https://intel.arkm.com/explorer/address/{address})"
+        f"{_markdown_link('scan', f'https://etherscan.io/address/{address}') }"
+        f" | {_markdown_link('debank', f'https://debank.com/profile/{address}') }"
+        f" | {_markdown_link('arkham', f'https://intel.arkm.com/explorer/address/{address}') }"
     )
     return f"{prefix}`{address}` {links}"
 
@@ -70,7 +74,7 @@ def format_new_transaction_message(notification: MonitorNotification) -> str:
     ]
     if tx.safe_tx_hash:
         lines.append(f"Safe tx hash: {tx.safe_tx_hash}")
-        lines.append(f"Safe App: {_safe_app_link(notification.safe_address, tx.safe_tx_hash)}")
+        lines.append(f"Safe App: {_markdown_link('open', _safe_app_link(notification.safe_address, tx.safe_tx_hash))}")
     if tx.transaction_hash:
         lines.append(f"Execution tx hash: {tx.transaction_hash}")
     if tx.confirmations_submitted is not None:
@@ -90,7 +94,7 @@ def format_new_contract_call_message(notification: ContractMonitorNotification) 
         f"From: {tx.from_address}",
         f"To: {tx.to_address or 'unknown'}",
         f"Value: {tx.value}",
-        f"Etherscan: {_etherscan_tx_link(tx.tx_hash)}",
+        f"Etherscan: {_markdown_link('open', _etherscan_tx_link(tx.tx_hash))}",
     ]
     if tx.selector:
         lines.append(f"Selector: {tx.selector}")
@@ -108,6 +112,6 @@ def format_new_eoa_transaction_message(notification: EoaMonitorNotification) -> 
         f"From: {tx.from_address}",
         f"To: {tx.to_address or 'unknown'}",
         f"Value: {tx.value}",
-        f"Etherscan: {_etherscan_tx_link(tx.tx_hash)}",
+        f"Etherscan: {_markdown_link('open', _etherscan_tx_link(tx.tx_hash))}",
     ]
     return "\n".join(lines)
