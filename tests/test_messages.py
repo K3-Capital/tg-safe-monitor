@@ -35,8 +35,13 @@ def test_safe_message_includes_safe_app_link() -> None:
 
     message = format_new_transaction_message(notification)
 
-    assert "app.safe.global" in message
-    assert "multisig_0x693e444389F3cB953F8baD0EaC2CE2885df68De7_0xa499f3d780f980b1cecea9d4bad9a1228492de376119fe242399dc713e7f14d0" in message
+    assert (
+        "Safe App: [open](https://app.safe.global/transactions/tx?safe=eth:"
+        "0x693e444389F3cB953F8baD0EaC2CE2885df68De7"
+        "&id=multisig_0x693e444389F3cB953F8baD0EaC2CE2885df68De7_"
+        "0xa499f3d780f980b1cecea9d4bad9a1228492de376119fe242399dc713e7f14d0)"
+        in message
+    )
 
 
 def test_contract_message_includes_etherscan_link() -> None:
@@ -57,7 +62,7 @@ def test_contract_message_includes_etherscan_link() -> None:
 
     message = format_new_contract_call_message(notification)
 
-    assert "etherscan.io/tx/0xabc" in message
+    assert "Etherscan: [open](https://etherscan.io/tx/0xabc)" in message
 
 
 def test_eoa_message_includes_etherscan_link() -> None:
@@ -77,4 +82,4 @@ def test_eoa_message_includes_etherscan_link() -> None:
 
     message = format_new_eoa_transaction_message(notification)
 
-    assert "etherscan.io/tx/0xdef" in message
+    assert "Etherscan: [open](https://etherscan.io/tx/0xdef)" in message
